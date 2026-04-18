@@ -7,6 +7,10 @@ from fastapi.staticfiles import StaticFiles
 import google.generativeai as genai
 from deep_translator import GoogleTranslator
 import edge_tts
+from dotenv import load_dotenv
+
+# Load API key from .env file permanently
+load_dotenv()
 
 app = FastAPI(title="T&C Summarizer API")
 
@@ -20,7 +24,12 @@ app.add_middleware(
 )
 
 # Ensure audio directory exists
-os.makedirs("audio", exist_ok=True)
+# Correctly locate directories relative to the project root
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+AUDIO_DIR = os.path.join(BASE_DIR, "audio")
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+
+os.makedirs(AUDIO_DIR, exist_ok=True)
 
 # ------------------------------------------------------------
 # Backend Logic
@@ -98,19 +107,21 @@ def translate_summary_free(summary, target_lang_code):
         return f"[{target_lang_code} translation error]"
 
 RATES = {
-    "hi": "+18%", "kn": "+63%", "te": "+59%", 
-    "bn": "+79%", "ta": "+71%", "mr": "+80%", "ml": "+70%"
+    "hi": "+18%", "kn": "+18%", "te": "+18%", "bn": "+18%", "ta": "+18%", 
+    "mr": "+18%", "ml": "+18%"
 }
 VOICES = {
     "hi": "hi-IN-SwaraNeural", "kn": "kn-IN-SapnaNeural", "te": "te-IN-ShrutiNeural",
-    "bn": "bn-IN-TanishaaNeural", "ta": "ta-IN-PallaviNeural", "mr": "mr-IN-AarohiNeural", "ml": "ml-IN-SobhanaNeural"
+    "bn": "bn-IN-TanishaaNeural", "ta": "ta-IN-PallaviNeural", "mr": "mr-IN-AarohiNeural", 
+    "ml": "ml-IN-SobhanaNeural"
 }
 
 async def generate_audio(text, lang):
-    out_file = f"audio/summary_{lang}.mp3"
+    filename = f"summary_{lang}.mp3"
+    full_path = os.path.join(AUDIO_DIR, filename)
     communicate = edge_tts.Communicate(text, VOICES[lang], rate=RATES[lang])
-    await communicate.save(out_file)
-    return f"/audio/summary_{lang}.mp3"
+    await communicate.save(full_path)
+    return f"/audio/{filename}"
 
 def validate_summary(summary, min_words=125, max_words=135):
     word_count = len(summary.split())
@@ -130,12 +141,15 @@ def validate_summary(summary, min_words=125, max_words=135):
 # ------------------------------------------------------------
 @app.post("/api/summarize")
 async def api_summarize(
-    api_key: str = Form(...),
+    api_key: str = Form(None),
     text: str = Form(None),
     file: UploadFile = File(None)
 ):
-    if not api_key:
-        raise HTTPException(status_code=400, detail="API Key is required")
+    # Use .env key if no key provided from frontend
+    if not api_key or not api_key.strip():
+        api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key or api_key == "PASTE_YOUR_API_KEY_HERE":
+        raise HTTPException(status_code=400, detail="API Key is required. Set it in .env file or provide it in the form.")
         
     raw_text = ""
     if text and text.strip():
@@ -154,19 +168,22 @@ async def api_summarize(
         final_summary, status_msg = validate_summary(summary_en)
         
         # Translate
+        # Translate and Generate Audio
         lang_codes = ["hi", "kn", "te", "bn", "ta", "mr", "ml"]
-        translations = {code: translate_summary_free(final_summary, code) for code in lang_codes}
+        audio_urls = {}
         
-        # Generate Audio sequentially to avoid Microsoft edge-tts throttling
-        audio_paths = []
         for code in lang_codes:
-            path = await generate_audio(translations[code], code)
-            audio_paths.append(path)
-        
-        audio_urls = {code: path for code, path in zip(lang_codes, audio_paths)}
+            try:
+                # 1. Translate
+                translated_text = translate_summary_free(final_summary, code)
+                # 2. Generate Audio
+                url = await generate_audio(translated_text, code)
+                audio_urls[code] = url
+            except Exception as lang_error:
+                print(f"Skipping {code} due to error: {lang_error}")
         
         return {
-            "status": status_msg + "\n✅ Translations and audio generated!",
+            "status": status_msg + f"\n✅ Generated audio for {len(audio_urls)} languages.",
             "english_summary": final_summary,
             "audio_urls": audio_urls
         }
@@ -175,8 +192,8 @@ async def api_summarize(
         raise HTTPException(status_code=500, detail=str(e))
 
 # Mount directories
-app.mount("/audio", StaticFiles(directory="audio"), name="audio")
+# Mount directories
+app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
 
-# Mount frontend at the very end so it doesn't override API routes
-os.makedirs("frontend", exist_ok=True)
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+# Mount frontend
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
