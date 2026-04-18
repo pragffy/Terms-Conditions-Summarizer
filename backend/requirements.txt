@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-gunicorn
-python-dotenv
-PyPDF2
-google-generativeai
-deep-translator
-edge-tts
-mutagen
