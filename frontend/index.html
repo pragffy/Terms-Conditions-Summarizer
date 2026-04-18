@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T&C Summarizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body class="min-h-screen p-8 font-sans">
+    <div class="max-w-4xl mx-auto space-y-8">
+        
+        <!-- Header -->
+        <div class="text-center space-y-2">
+            <h1 class="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                📄 Terms & Conditions Summarizer
+            </h1>
+            <p class="text-slate-400">Upload a PDF or paste text to get a 130-word summary and 60-second translated audio.</p>
+        </div>
+
+        <!-- Main Form -->
+        <div class="glass-panel rounded-2xl p-6 shadow-2xl space-y-6">
+            
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-300">🔑 Gemini API Key (Required)</label>
+                <input type="password" id="apiKey" value="AIzaSyD42kqvbJRIq6mDJrnJjzpkCo6pvxnNBeM" placeholder="Paste your new Gemini API key here..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- File Upload -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-300">📁 Upload PDF</label>
+                    <div class="flex items-center justify-center w-full">
+                        <label class="flex flex-col items-center justify-center w-full h-40 border-2 border-slate-600 border-dashed rounded-lg cursor-pointer bg-slate-800 hover:bg-slate-700 transition">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <p class="text-sm text-slate-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                            </div>
+                            <input id="fileInput" type="file" class="hidden" accept=".pdf" />
+                        </label>
+                    </div>
+                    <p id="fileName" class="text-xs text-emerald-400 mt-2 hidden"></p>
+                </div>
+
+                <!-- Text Paste -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-300">📝 Or Paste Text</label>
+                    <textarea id="textInput" class="w-full h-40 bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none placeholder-slate-500" placeholder="Paste your dense legal text here..."></textarea>
+                </div>
+            </div>
+
+            <button id="submitBtn" class="w-full py-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-lg transition transform hover:scale-[1.01] active:scale-95 flex justify-center items-center">
+                🚀 Summarize & Translate
+            </button>
+        </div>
+
+        <!-- Results Area -->
+        <div id="resultsArea" class="hidden space-y-6 animate-fade-in-up">
+            
+            <div id="statusBox" class="p-4 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium"></div>
+
+            <div class="glass-panel rounded-2xl p-6 shadow-xl space-y-4">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span>📝</span> English Summary
+                </h3>
+                <div id="summaryOutput" class="bg-slate-800 p-4 rounded-lg text-slate-300 whitespace-pre-wrap leading-relaxed border border-slate-700"></div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 shadow-xl space-y-6">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span>🔊</span> 60-Second Audio Summaries
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="audioGrid">
+                    <!-- Audio players injected by JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileName');
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                fileNameDisplay.textContent = `Selected: ${e.target.files[0].name}`;
+                fileNameDisplay.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('submitBtn');
+            const statusBox = document.getElementById('statusBox');
+            const summaryOutput = document.getElementById('summaryOutput');
+            const audioGrid = document.getElementById('audioGrid');
+            const resultsArea = document.getElementById('resultsArea');
+            
+            const file = fileInput.files[0];
+            const text = document.getElementById('textInput').value;
+            const apiKey = document.getElementById('apiKey').value;
+
+            if (!file && !text.trim()) {
+                alert("Please upload a PDF or paste text.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...`;
+            
+            resultsArea.classList.add('hidden');
+            audioGrid.innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('api_key', apiKey);
+            if (file) formData.append('file', file);
+            if (text) formData.append('text', text);
+
+            try {
+                // Determine origin dynamically to support deployment
+                const baseUrl = window.location.origin;
+                const response = await fetch(`${baseUrl}/api/summarize`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.detail || "Server error");
+
+                statusBox.innerText = data.status;
+                summaryOutput.innerText = data.english_summary;
+
+                const languageNames = {
+                    "hi": "🇮🇳 Hindi", "kn": "🇮🇳 Kannada", "te": "🇮🇳 Telugu",
+                    "bn": "🇮🇳 Bengali", "ta": "🇮🇳 Tamil", "mr": "🇮🇳 Marathi", "ml": "🇮🇳 Malayalam"
+                };
+
+                for (const [code, url] of Object.entries(data.audio_urls)) {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col gap-3";
+                    div.innerHTML = `
+                        <span class="font-semibold text-emerald-400">${languageNames[code]}</span>
+                        <audio controls class="w-full outline-none">
+                            <source src="${url}?t=${new Date().getTime()}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    `;
+                    audioGrid.appendChild(div);
+                }
+
+                resultsArea.classList.remove('hidden');
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `🚀 Summarize & Translate`;
+            }
+        });
+    </script>
+</body>
+</html>
