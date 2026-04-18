@@ -181,9 +181,7 @@ async def api_summarize(
             try:
                 # 1. Translate
                 translated_text = translate_summary_free(final_summary, code)
-                # 2. Generate Audio
-                url = await generate_audio(translated_text, code)
-                audio_urls[code] = url
+                audio_urls[code] = translated_text   # TEMP (no audio)
             except Exception as lang_error:
                 print(f"Skipping {code} due to error: {lang_error}")
         
