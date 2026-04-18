@@ -200,5 +200,3 @@ async def api_summarize(
 # Mount directories
 app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
 
-# Mount frontend
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
