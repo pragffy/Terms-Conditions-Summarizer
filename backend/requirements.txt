@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-python-multipart
+gunicorn
+python-dotenv
 PyPDF2
 google-generativeai
 deep-translator

@@ -25,8 +25,8 @@
         <div class="glass-panel rounded-2xl p-6 shadow-2xl space-y-6">
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-slate-300">🔑 Gemini API Key (Required)</label>
-                <input type="password" id="apiKey" value="AIzaSyD42kqvbJRIq6mDJrnJjzpkCo6pvxnNBeM" placeholder="Paste your new Gemini API key here..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                <label class="block text-sm font-medium text-slate-300">🔑 Gemini API Key <span class="text-emerald-400">(Optional — saved on server)</span></label>
+                <input type="password" id="apiKey" placeholder="Leave blank to use server key, or paste a different key..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -148,6 +148,9 @@
                             Your browser does not support the audio element.
                         </audio>
                     `;
+                    const audioEl = div.querySelector('audio');
+                    audioEl.playbackRate = 0.8;
+                    audioEl.addEventListener('play', () => { audioEl.playbackRate = 0.8; });
                     audioGrid.appendChild(div);
                 }
 
