@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 # Load API key from .env file permanently
 load_dotenv()
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 app = FastAPI(title="T&C Summarizer API")
 
@@ -25,7 +26,7 @@ app.add_middleware(
 
 # Ensure audio directory exists
 # Correctly locate directories relative to the project root
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 AUDIO_DIR = os.path.join(BASE_DIR, "audio")
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
@@ -52,7 +53,7 @@ def chunk_text(text, max_words=3000):
 
 def summarize_text(long_text, api_key):
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel("gemini-pro")
     
     chunks = chunk_text(long_text)
     sub_summaries = []
@@ -139,6 +140,10 @@ def validate_summary(summary, min_words=125, max_words=135):
 # ------------------------------------------------------------
 # API Endpoints
 # ------------------------------------------------------------
+@app.get("/status")
+def home():
+    return {"message": "working"}
+
 @app.post("/api/summarize")
 async def api_summarize(
     api_key: str = Form(None),
@@ -147,7 +152,7 @@ async def api_summarize(
 ):
     # Use .env key if no key provided from frontend
     if not api_key or not api_key.strip():
-        api_key = os.getenv("GEMINI_API_KEY", "")
+        api_key = os.getenv("GOOGLE_API_KEY", "")
     if not api_key or api_key == "PASTE_YOUR_API_KEY_HERE":
         raise HTTPException(status_code=400, detail="API Key is required. Set it in .env file or provide it in the form.")
         
